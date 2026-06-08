@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ateliê de Etiquetas</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">A</div>
+          <div>
+            <h1>Ateliê de Etiquetas</h1>
+            <p>Importador moderno para etiquetas de roupa `.ETQ`</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <label class="icon-button" title="Abrir arquivos ETQ, PNG, JPG, WMF ou INF">
+            <input id="fileInput" type="file" multiple accept=".etq,.etm,.inf,.png,.jpg,.jpeg,.wmf" />
+            <span aria-hidden="true">↥</span>
+            <span>Arquivos</span>
+          </label>
+          <label class="icon-button" title="Importar CSV ou TSV com varias etiquetas">
+            <input id="batchInput" type="file" accept=".csv,.tsv,.txt" />
+            <span aria-hidden="true">#</span>
+            <span>Lote</span>
+          </label>
+          <label class="icon-button" title="Abrir uma pasta com arquivos de etiquetas">
+            <input id="folderInput" type="file" webkitdirectory multiple />
+            <span aria-hidden="true">▣</span>
+            <span>Pasta</span>
+          </label>
+          <label class="icon-button" title="Carregar um projeto salvo em JSON">
+            <input id="projectInput" type="file" accept=".json" />
+            <span aria-hidden="true">{}</span>
+            <span>Abrir projeto</span>
+          </label>
+          <button id="saveProjectButton" class="icon-button" title="Salvar projeto em JSON">
+            <span aria-hidden="true">{}</span>
+            <span>Salvar</span>
+          </button>
+          <button id="printButton" class="icon-button" title="Imprimir a etiqueta atual">
+            <span aria-hidden="true">⎙</span>
+            <span>Imprimir</span>
+          </button>
+          <button id="exportButton" class="icon-button" title="Exportar a etiqueta atual em SVG">
+            <span aria-hidden="true">⇩</span>
+            <span>SVG</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar">
+          <section class="panel library-panel">
+            <div class="panel-head">
+              <h2>Biblioteca</h2>
+              <span id="fileCount" class="count">0</span>
+            </div>
+            <input id="searchInput" class="search" type="search" placeholder="Buscar tecido, modelo, medida..." />
+            <div id="libraryList" class="library-list"></div>
+          </section>
+
+          <section class="panel template-panel">
+            <div class="panel-head">
+              <h2>Medidas</h2>
+            </div>
+            <div class="field-row">
+              <label>
+                Largura mm
+                <input id="widthInput" type="number" min="5" step="0.1" value="25" />
+              </label>
+              <label>
+                Altura mm
+                <input id="heightInput" type="number" min="5" step="0.1" value="55" />
+              </label>
+            </div>
+            <label class="full-field">
+              Modelo
+              <select id="presetSelect">
+                <option value="lnt2">LNT-2 25 x 55</option>
+                <option value="lnt4">LNT-4 33 x 69,9</option>
+                <option value="lcs3">LCS-3 33 x 55</option>
+                <option value="nttyny1">NT/TY/NY-1 25,4 x 44,5</option>
+                <option value="tyb3">TYB-3 33 x 51</option>
+                <option value="custom">Personalizado</option>
+              </select>
+            </label>
+          </section>
+        </aside>
+
+        <section class="stage">
+          <div class="stage-toolbar">
+            <div class="tabs" role="tablist" aria-label="Modo">
+              <button class="tab active" data-mode="preview">Prévia</button>
+              <button class="tab" data-mode="sheet">Folha</button>
+              <button class="tab" data-mode="batch">Lote</button>
+              <button class="tab" data-mode="data">Dados</button>
+              <button class="tab" data-mode="legacy">Arquivo</button>
+            </div>
+            <div id="selectedMeta" class="selected-meta">Nenhum arquivo carregado</div>
+          </div>
+
+          <div id="previewMode" class="mode-view active">
+            <div class="preview-layout">
+              <div class="label-sheet">
+                <div id="labelPreview" class="label-preview"></div>
+              </div>
+              <form id="editorForm" class="editor panel">
+                <div class="panel-head">
+                  <h2>Conteúdo</h2>
+                </div>
+                <label class="full-field">
+                  Nome do tecido
+                  <input id="fabricNameInput" type="text" value="Viscolycra UNICA" />
+                </label>
+                <label class="full-field">
+                  Composição
+                  <textarea id="compositionInput" rows="3">96% VISCOSE
+4% ELASTANO</textarea>
+                </label>
+                <label class="full-field">
+                  Observações
+                  <textarea id="notesInput" rows="3">Indústria Brasileira</textarea>
+                </label>
+                <div class="care-grid">
+                  <label><input type="checkbox" data-care="wash" checked /> Lavar</label>
+                  <label><input type="checkbox" data-care="bleach" /> Alvejar</label>
+                  <label><input type="checkbox" data-care="iron" checked /> Passar</label>
+                  <label><input type="checkbox" data-care="dry" checked /> Secar</label>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div id="sheetMode" class="mode-view">
+            <div class="sheet-layout">
+              <section class="sheet-preview panel">
+                <div class="panel-head">
+                  <h2>Folha A4</h2>
+                  <span id="sheetMeta" class="sheet-meta"></span>
+                </div>
+                <div id="sheetPreview" class="sheet-canvas"></div>
+              </section>
+              <section class="panel sheet-controls">
+                <div class="panel-head">
+                  <h2>Impressão</h2>
+                </div>
+                <div class="field-row">
+                  <label>
+                    Cópias
+                    <input id="copiesInput" type="number" min="1" max="200" step="1" value="24" />
+                  </label>
+                  <label>
+                    Colunas
+                    <input id="columnsInput" type="number" min="1" max="8" step="1" value="4" />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label>
+                    Margem mm
+                    <input id="marginInput" type="number" min="0" max="30" step="0.5" value="8" />
+                  </label>
+                  <label>
+                    Espaço mm
+                    <input id="gapInput" type="number" min="0" max="15" step="0.5" value="3" />
+                  </label>
+                </div>
+                <label class="full-field">
+                  Orientação da etiqueta
+                  <select id="labelOrientationInput">
+                    <option value="portrait">Vertical</option>
+                    <option value="landscape">Horizontal</option>
+                  </select>
+                </label>
+              </section>
+            </div>
+          </div>
+
+          <div id="batchMode" class="mode-view">
+            <div class="batch-layout">
+              <section class="panel">
+                <div class="panel-head">
+                  <h2>Lote importado</h2>
+                  <span id="batchCount" class="count">0</span>
+                </div>
+                <div id="batchList" class="batch-list"></div>
+              </section>
+              <section class="panel">
+                <div class="panel-head"><h2>Formato esperado</h2></div>
+                <div class="format-table">
+                  <div><strong>tecido</strong><span>Nome que aparece no topo.</span></div>
+                  <div><strong>composicao</strong><span>Use linhas com porcentagem, separadas por ; ou |.</span></div>
+                  <div><strong>observacoes</strong><span>Rodape da etiqueta.</span></div>
+                  <div><strong>largura</strong><span>Milimetros, opcional.</span></div>
+                  <div><strong>altura</strong><span>Milimetros, opcional.</span></div>
+                  <div><strong>copias</strong><span>Quantidade para a folha.</span></div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div id="dataMode" class="mode-view">
+            <div class="data-grid">
+              <section class="panel">
+                <div class="panel-head"><h2>Metadados extraídos</h2></div>
+                <dl id="metadataList" class="metadata-list"></dl>
+              </section>
+              <section class="panel">
+                <div class="panel-head"><h2>Textos encontrados</h2></div>
+                <div id="textHits" class="text-hits"></div>
+              </section>
+            </div>
+          </div>
+
+          <div id="legacyMode" class="mode-view">
+            <div class="data-grid">
+              <section class="panel">
+                <div class="panel-head"><h2>Prévia externa</h2></div>
+                <div id="legacyImage" class="legacy-image"></div>
+              </section>
+              <section class="panel">
+                <div class="panel-head"><h2>Blocos embutidos</h2></div>
+                <div id="embeddedList" class="embedded-list"></div>
+              </section>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./catalog-seed.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
