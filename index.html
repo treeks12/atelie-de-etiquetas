@@ -113,6 +113,7 @@
               <button class="tab" data-mode="sheet">Folha</button>
               <button class="tab" data-mode="batch">Lote</button>
               <button class="tab" data-mode="data">Dados</button>
+              <button class="tab" data-mode="design">Design</button>
               <button class="tab" data-mode="legacy">Arquivo</button>
             </div>
             <div id="selectedMeta" class="selected-meta">Nenhum arquivo carregado</div>
@@ -257,6 +258,43 @@
               </section>
             </div>
           </div>
+
+          <div id="designMode" class="mode-view">
+            <div class="design-layout">
+              <div class="design-toolbar">
+                <button class="dtool-btn" onclick="CanvasDesigner.addText()" title="Adicionar texto">
+                  <span class="dtool-icon">T</span>
+                  <span class="dtool-label">Texto</span>
+                </button>
+                <button class="dtool-btn" onclick="CanvasDesigner.addCareSymbol()" title="Adicionar símbolo de cuidado">
+                  <span class="dtool-icon">S</span>
+                  <span class="dtool-label">Símbolo</span>
+                </button>
+                <button class="dtool-btn" onclick="CanvasDesigner.addBarcode()" title="Adicionar código de barras">
+                  <span class="dtool-icon">#</span>
+                  <span class="dtool-label">Código</span>
+                </button>
+                <button class="dtool-btn" onclick="CanvasDesigner.addLine()" title="Adicionar linha">
+                  <span class="dtool-icon">/</span>
+                  <span class="dtool-label">Linha</span>
+                </button>
+                <div class="dtool-sep"></div>
+                <button class="dtool-btn" onclick="CanvasDesigner.zoomIn()" title="Zoom +">
+                  <span class="dtool-icon">+</span>
+                </button>
+                <button class="dtool-btn" onclick="CanvasDesigner.zoomOut()" title="Zoom -">
+                  <span class="dtool-icon">&minus;</span>
+                </button>
+                <div class="dtool-sep"></div>
+                <button class="dtool-btn dtool-danger" onclick="CanvasDesigner.deleteSelected()" title="Remover selecionado">
+                  <span class="dtool-icon">&times;</span>
+                  <span class="dtool-label">Remover</span>
+                </button>
+              </div>
+              <div id="designCanvas" class="design-canvas"></div>
+              <div id="designProps" class="design-props"></div>
+            </div>
+          </div>
         </section>
       </main>
     </div>
@@ -264,6 +302,7 @@
     <script src="./vendor/jsbarcode.min.js"></script>
     <script src="./label-presets.js"></script>
     <script src="./care-symbols.js"></script>
+    <script src="./canvas-designer.js"></script>
     <script src="./catalog-seed.js"></script>
     <script src="./app.js"></script>
   </body>

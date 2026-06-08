@@ -1260,7 +1260,14 @@ function sheetDocumentSvg() {
 }
 
 function exportSvg() {
-  const svgText = state.mode === "sheet" ? sheetDocumentSvg() : els.labelPreview.querySelector("svg")?.outerHTML;
+  var svgText;
+  if (state.mode === "design") {
+    svgText = CanvasDesigner.getSvg();
+  } else if (state.mode === "sheet") {
+    svgText = sheetDocumentSvg();
+  } else {
+    svgText = els.labelPreview.querySelector("svg")?.outerHTML;
+  }
   if (!svgText) return;
   const data = new Blob([svgText], { type: "image/svg+xml" });
   const url = URL.createObjectURL(data);
@@ -1294,8 +1301,18 @@ els.batchList.addEventListener("click", (event) => {
 });
 document.querySelectorAll(".tab").forEach((tab) => {
   tab.addEventListener("click", () => {
+    if (state.mode === "design") CanvasDesigner.saveToEditor(state.editor);
     state.mode = tab.dataset.mode;
+    if (state.mode === "design") {
+      readEditorControls();
+      CanvasDesigner.loadFromEditor(state.editor);
+    }
     renderModes();
+    if (state.mode !== "design") {
+      syncEditorControls();
+      renderLabel();
+      renderSheet();
+    }
   });
 });
 [els.widthInput, els.heightInput, els.fabricNameInput, els.compositionInput, els.notesInput, els.barcodeValueInput].forEach((el) => {
@@ -1370,6 +1387,7 @@ function printSheet() {
 els.printButton.addEventListener("click", printSheet);
 els.exportButton.addEventListener("click", exportSvg);
 
+CanvasDesigner.init();
 loadSeedCatalog();
 populatePresetSelect();
 populateCareVariants();

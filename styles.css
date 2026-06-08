@@ -662,6 +662,23 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .design-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .design-toolbar {
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+  }
+
+  .design-props {
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+
   .batch-row {
     grid-template-columns: 1fr;
   }
@@ -769,4 +786,124 @@ textarea {
   .sheet-preview .panel-head {
     display: none;
   }
+}
+
+#designMode {
+  padding: 0;
+  overflow: hidden;
+}
+
+.design-layout {
+  display: grid;
+  grid-template-columns: auto 1fr 260px;
+  gap: 0;
+  height: calc(100vh - 130px);
+}
+
+.design-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 4px;
+  background: #fff;
+  border-right: 1px solid var(--line);
+}
+
+.dtool-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 11px;
+  min-width: 48px;
+}
+
+.dtool-btn:hover {
+  background: #f2f8f5;
+  border-color: var(--line);
+}
+
+.dtool-icon {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dtool-label {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.dtool-sep {
+  height: 1px;
+  margin: 3px 6px;
+  background: var(--line);
+}
+
+.dtool-danger {
+  color: #b52;
+}
+
+.dtool-danger:hover {
+  background: #fef2f2;
+  border-color: #ecc;
+}
+
+.design-canvas {
+  overflow: auto;
+  background: #dde3de;
+  padding: 12px;
+}
+
+.design-props {
+  background: #fff;
+  border-left: 1px solid var(--line);
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.props-empty {
+  padding: 20px 8px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.props-title {
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 8px;
+}
+
+.props-field {
+  padding: 4px 0;
+}
+
+.props-field label {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.props-field input,
+.props-field textarea,
+.props-field select {
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.props-field textarea {
+  min-height: 48px;
+  resize: vertical;
 }
