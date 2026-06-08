@@ -126,6 +126,15 @@ function cleanText(text) {
     .trim();
 }
 
+function isCleanText(text) {
+  if (!text || text.length < 4) return false;
+  if (/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(text)) return false;
+  if (text.includes("MS Sans Serif")) return false;
+  const printable = text.match(/[A-Za-z0-9À-ÿ .,;\-\/()]/g);
+  const ratio = (printable || []).length / text.length;
+  return ratio >= 0.7;
+}
+
 function readUint32(view, offset) {
   return offset + 4 <= view.byteLength ? view.getUint32(offset, true) : 0;
 }
@@ -147,7 +156,7 @@ function readPascalString(bytes, offset) {
 function findPascalString(bytes, offset, maxScan = 32) {
   for (let delta = 0; delta <= maxScan; delta += 1) {
     const candidate = readPascalString(bytes, offset + delta);
-    if (candidate.ok && /[A-Za-zÀ-ÿ]/.test(candidate.text)) return candidate;
+    if (candidate.ok && /[A-Za-zÀ-ÿ]/.test(candidate.text) && isCleanText(candidate.text)) return candidate;
   }
   return { text: "", next: offset, ok: false };
 }
@@ -257,6 +266,15 @@ function parseWddesign(file, bytes) {
   while (offset < bytes.length && bytes[offset] === 0 && offset < 96) offset += 1;
   parsed = findPascalString(bytes, offset);
   result.category = parsed.text;
+  if (
+    result.category &&
+    (/[\x00-\x1F]/.test(result.category) ||
+      result.category.includes("MS Sans Serif") ||
+      (result.category.match(/[\x00-\x1F]/g) || []).length > 3 ||
+      !isCleanText(result.category))
+  ) {
+    result.category = "Etiq. para Composições em Folhas";
+  }
   offset = parsed.next;
   parsed = findPascalString(bytes, offset);
   result.labelName = parsed.text;

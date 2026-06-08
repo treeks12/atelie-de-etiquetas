@@ -62,7 +62,7 @@ window.PAULIMAQ_ARCHIVE_CATALOG = [
   },
   {
     "name": "BRAND VISCOSE PLANO MACONHA.ETQ",
-    "category": "Ò) 9 ÀK \n½ ½ MS Sans Serif ü ü Ð\nbv lyIþ ü ½ ½ Ø ôõ×ÍÆšó ü è öT a F",
+    "category": "Etiq. para Composições em Folhas",
     "labelName": "LNT-2 (25,0x55mm)",
     "widthMm": 25,
     "heightMm": 55,
@@ -515,7 +515,7 @@ window.PAULIMAQ_ARCHIVE_CATALOG = [
   },
   {
     "name": "PETIT POA.ETQ",
-    "category": "Ò) 9 ÀK \n½ ½ MS Sans Serif ü ü Ð\nbvRÕæeþ ü ½ ½ Ø ôõ×ÍÆšó ü è öT a F",
+    "category": "Etiq. para Composições em Folhas",
     "labelName": "LNT-2 (25,0x55mm)",
     "widthMm": 25,
     "heightMm": 55,
@@ -574,7 +574,7 @@ window.PAULIMAQ_ARCHIVE_CATALOG = [
   },
   {
     "name": "STRIPE GOLDEN RAMADO.ETQ",
-    "category": "Ò) 9 ÀK \n½ ½ MS Sans Serif ü ü Ð\n u 35þ ü ½ ½ Ø ôõ×ÍÆšó ü è öT a F",
+    "category": "Etiq. para Composições em Folhas",
     "labelName": "LNT-2 (25,0x55mm)",
     "widthMm": 25,
     "heightMm": 55,
@@ -586,7 +586,7 @@ window.PAULIMAQ_ARCHIVE_CATALOG = [
   },
   {
     "name": "SUECO TURQUIA (POMBO CADEIRA).ETQ",
-    "category": "Ò) 9 ÀK \n½ ½ MS Sans Serif ü xü 0ïuL33èþ ü ½ ½ Ø ôõ×ÍÆšó ü è öT a F",
+    "category": "Etiq. para Composições em Folhas",
     "labelName": "LNT-2 (25,0x55mm)",
     "widthMm": 25,
     "heightMm": 55,
@@ -623,7 +623,7 @@ window.PAULIMAQ_ARCHIVE_CATALOG = [
   },
   {
     "name": "tecido furado poliester ADAR.ETQ",
-    "category": ") 9 K 7\n MS Sans Serif L \nu e ƚ T a F",
+    "category": "Etiq. para Composições em Folhas",
     "labelName": "LNT-2 (25,0x55mm)",
     "widthMm": 25,
     "heightMm": 55,
@@ -660,7 +660,7 @@ window.PAULIMAQ_ARCHIVE_CATALOG = [
   },
   {
     "name": "vicenza com tamanho.ETQ",
-    "category": "Ò) 9 ÀK D\n¾ ¾ MS Sans Serif Lì ì Ð\nfuÐ ƒVþ ì ¾ ¾ Ø ôõ×ÍÆšó ü è öT a F",
+    "category": "Etiq. para Composições em Folhas",
     "labelName": "LNT-2 (25,0x55mm)",
     "widthMm": 25,
     "heightMm": 55,
@@ -684,7 +684,7 @@ window.PAULIMAQ_ARCHIVE_CATALOG = [
   },
   {
     "name": "Viscolycra com Tamanho.ETQ",
-    "category": "Ò) 9 ÀK 8\n¼ ¼ MS Sans Serif Lì ì Ð\nbvlFwêþ ì ¼ ¼ Ø ôõ×ÍÆšó ü è öT a F",
+    "category": "Etiq. para Composições em Folhas",
     "labelName": "LNT-2 (25,0x55mm)",
     "widthMm": 25,
     "heightMm": 55,
