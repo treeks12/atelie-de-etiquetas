@@ -25,13 +25,28 @@ const state = {
   },
 };
 
-const LABEL_PRESETS = [
+const LEGACY_PRESETS = [
   { id: "lnt2", model: "LNT-2", label: "LNT-2 25 x 55", widthMm: 25, heightMm: 55, layout: "legacy-compact", defaultColumns: 4 },
   { id: "lnt4", model: "LNT-4", label: "LNT-4 33 x 69,9", widthMm: 33, heightMm: 69.9, layout: "tall-composition", defaultColumns: 3 },
   { id: "lcs3", model: "LCS-3", label: "LCS-3 33 x 55", widthMm: 33, heightMm: 55, layout: "wide-compact", defaultColumns: 3 },
   { id: "nttyny1", model: "NT/TY/NY-1", label: "NT/TY/NY-1 25,4 x 44,5", widthMm: 25.4, heightMm: 44.5, layout: "small-care", defaultColumns: 4 },
   { id: "tyb3", model: "TYB-3", label: "TYB-3 33 x 51", widthMm: 33, heightMm: 51, layout: "wide-compact", defaultColumns: 3 },
 ];
+
+const LABEL_PRESETS = Array.isArray(window.LABEL_PRESETS_FULL) && window.LABEL_PRESETS_FULL.length > 0
+  ? window.LABEL_PRESETS_FULL.map(function (p) {
+      return {
+        id: p.id,
+        model: p.model,
+        label: p.label,
+        widthMm: p.widthMm,
+        heightMm: p.heightMm,
+        layout: p.layout || "legacy-compact",
+        defaultColumns: p.columns || 4,
+        family: p.family,
+      };
+    })
+  : LEGACY_PRESETS;
 
 const els = {
   fileInput: document.getElementById("fileInput"),
@@ -634,12 +649,23 @@ function renderLabelSvg({ className = "label-svg", widthMmOverride = null, heigh
   const compositionStart = layout === "tall-composition" ? margin + 68 : margin + 60;
   const compositionGap = layout === "tall-composition" ? 20 : 18;
   const compositionLimit = layout === "tall-composition" ? 7 : 5;
-  const careItems = [
-    ["wash", "LAVAR", "30"],
-    ["bleach", "ALV", "X"],
-    ["iron", "FERRO", "\u2022\u2022"],
-    ["dry", "SECAR", "\u25A1"],
-  ].filter(([id]) => care.has(id));
+  const CARE_DEFAULTS = [
+    ["wash", "LAVAR", "wash-30"],
+    ["bleach", "ALV", "bleach"],
+    ["iron", "FERRO", "iron-medium"],
+    ["dry", "SECAR", "dry-tumble"],
+  ];
+  const careSymbols = window.CARE_SYMBOLS || {};
+  const careVariantSelects = document.querySelectorAll("[data-care-symbol]");
+  const variantMap = {};
+  careVariantSelects.forEach((sel) => {
+    variantMap[sel.dataset.careSymbol] = sel.value;
+  });
+  const careItems = CARE_DEFAULTS.filter(([id]) => care.has(id)).map(([id, label, defaultKey]) => [
+    id,
+    label,
+    variantMap[id] || defaultKey,
+  ]);
   const careSize = Math.max(20, Math.min(layout === "tall-composition" ? 38 : 34, (w - margin * 2) / Math.max(1, careItems.length) - 5));
   const careY = layout === "tall-composition" ? Math.max(margin + 190, h - margin - careSize - 58) : Math.max(margin + 132, h - margin - careSize - 52);
   const compositionLines = composition.split(/\n+/).map((line) => line.trim()).filter(Boolean);
@@ -657,11 +683,15 @@ function renderLabelSvg({ className = "label-svg", widthMmOverride = null, heigh
         .join("")}
       <g transform="translate(${margin + 6}, ${careY})">
         ${careItems
-          .map(([, label, mark], i) => {
+          .map(([, label, symbolKey], i) => {
             const x = i * (careSize + 7);
+            const sym = careSymbols[symbolKey];
+            const innerSvg = sym
+              ? sym.svg.replace(/<svg[^>]*>/, "").replace(/<\/svg>/, "")
+              : "";
             return `<g transform="translate(${x},0)">
               <rect width="${careSize}" height="${careSize}" rx="3" fill="#fff" stroke="#1a1f1d" stroke-width="1"/>
-              <text x="${careSize / 2}" y="${careSize / 2 + 5}" text-anchor="middle" font-family="Segoe UI, Arial" font-size="${Math.max(9, careSize * 0.36)}" font-weight="800">${escapeSvg(mark)}</text>
+              <g transform="scale(${(careSize - 4) / 40})" transform-origin="2 2">${innerSvg}</g>
               <text x="${careSize / 2}" y="${careSize + 13}" text-anchor="middle" font-family="Segoe UI, Arial" font-size="7" fill="#4d5a54">${escapeSvg(label)}</text>
             </g>`;
           })
@@ -990,5 +1020,72 @@ els.printButton.addEventListener("click", () => window.print());
 els.exportButton.addEventListener("click", exportSvg);
 
 loadSeedCatalog();
+populatePresetSelect();
+populateCareVariants();
 syncEditorControls();
 render();
+
+function populatePresetSelect() {
+  const grouped = {};
+  LABEL_PRESETS.forEach((p) => {
+    const fam = p.family || "outros";
+    if (!grouped[fam]) grouped[fam] = [];
+    grouped[fam].push(p);
+  });
+  const familyLabels = {
+    etiqueta: "Etiquetas em Folha",
+    "etiqueta-m": "Etiquetas em Formulário",
+    "etiqueta-r": "Etiquetas em Rolo",
+    tag: "Tags em Folha",
+    tag2: "TagsExtras",
+    tag3: "Tags",
+    joia: "Jóias",
+    sapato: "Calçados",
+    fixbands: "Pulseiras",
+    etred: "Etiquetas Redondas",
+    cdlab: "CD Label",
+    cdcenter: "CD Center",
+    ncd: "CD Novo",
+    minicd: "Mini CD",
+    pcd: "CD Cards",
+    cdfastlab: "CD Fast Label",
+    cartao: "Cartões",
+    invite: "Convites",
+    photoa4: "Foto A4",
+    box: "Caixa CD",
+    caixa: "Caixa",
+    plantas: "Plantas",
+    outros: "Outros",
+  };
+  els.presetSelect.innerHTML = Object.entries(grouped)
+    .map(
+      ([fam, presets]) =>
+        `<optgroup label="${familyLabels[fam] || fam}">${presets
+          .map((p) => `<option value="${p.id}">${p.label}</option>`)
+          .join("")}</optgroup>`
+    )
+    .join("") + `<option value="custom">Personalizado</option>`;
+}
+
+function populateCareVariants() {
+  const symbols = window.CARE_SYMBOLS || {};
+  const groups = { wash: "wash", bleach: "bleach", iron: "iron", dry: "tumble" };
+  const defaults = { wash: "wash-30", bleach: "bleach", iron: "iron-medium", dry: "dry-tumble" };
+  document.querySelectorAll("[data-care-symbol]").forEach((select) => {
+    const group = select.dataset.careSymbol;
+    const mappedGroup = groups[group] || group;
+    const entries = Object.entries(symbols).filter(([, v]) => v.group === mappedGroup);
+    if (!entries.length) return;
+    select.innerHTML = entries
+      .map(
+        ([key, v]) =>
+          `<option value="${key}"${key === defaults[group] ? " selected" : ""}>${v.label}</option>`
+      )
+      .join("");
+    select.addEventListener("change", () => {
+      readEditorControls();
+      renderLabel();
+      renderSheet();
+    });
+  });
+}

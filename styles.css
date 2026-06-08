@@ -498,26 +498,42 @@ textarea {
   overflow: hidden;
 }
 
-.care-grid {
+.care-selector {
+  padding: 8px 12px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 12px;
+  gap: 6px;
 }
 
-.care-grid label {
+.care-selector-head {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.care-selector-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.care-selector-row label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--ink);
+  gap: 6px;
   font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
 }
 
-.care-grid input {
+.care-selector-row input {
   width: auto;
+}
+
+.care-variant {
+  font-size: 12px;
+  padding: 4px 6px;
 }
 
 .data-grid {
