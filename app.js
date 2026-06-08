@@ -11,6 +11,9 @@ const state = {
     composition: "96% VISCOSE\n4% ELASTANO",
     notes: "Indústria Brasileira",
     care: new Set(["wash", "iron", "dry"]),
+    barcodeValue: "7891234567890",
+    barcodeFormat: "EAN13",
+    barcodeEnabled: false,
   },
   sheet: {
     copies: 24,
@@ -80,6 +83,9 @@ const els = {
   batchCount: document.getElementById("batchCount"),
   printButton: document.getElementById("printButton"),
   exportButton: document.getElementById("exportButton"),
+  barcodeValueInput: document.getElementById("barcodeValueInput"),
+  barcodeFormatInput: document.getElementById("barcodeFormatInput"),
+  barcodeEnabledInput: document.getElementById("barcodeEnabledInput"),
 };
 
 const decoder1252 = new TextDecoder("windows-1252");
@@ -269,6 +275,7 @@ function parseWddesign(file, bytes) {
     rtfBlocks: [],
     embedded: { jpegOffsets: [], wmfOffsets: [], rtfOffsets: [] },
     objectGuess: [],
+    objects: [],
     file,
     source: "file",
   };
@@ -310,6 +317,8 @@ function parseWddesign(file, bytes) {
     offset += 8;
   }
 
+  const headerEnd = offset;
+
   result.embedded.jpegOffsets = findAllBytes(bytes, [0xff, 0xd8, 0xff]);
   result.embedded.wmfOffsets = findAllBytes(bytes, [0xd7, 0xcd, 0xc6, 0x9a]);
   result.rtfBlocks = extractRtfBlocks(bytes);
@@ -320,6 +329,7 @@ function parseWddesign(file, bytes) {
     ...result.textHits.map((h) => h.text),
   ].join("\n"));
   result.objectGuess = guessObjects(bytes);
+  result.objects = parseWddesignObjects(bytes, headerEnd);
   return result;
 }
 
@@ -364,17 +374,259 @@ function createId() {
 }
 
 function guessObjects(bytes) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const objects = [];
   const rtfBlocks = extractRtfBlocks(bytes);
+  const jpegOffsets = findAllBytes(bytes, [0xff, 0xd8, 0xff]);
+  const wmfOffsets = findAllBytes(bytes, [0xd7, 0xcd, 0xc6, 0x9a]);
   for (const block of rtfBlocks) {
-    objects.push({ type: "text", offset: block.offset, text: block.text.slice(0, 180) });
+    objects.push({
+      type: "text",
+      subType: "rtf",
+      offset: block.offset,
+      text: block.text.slice(0, 180),
+      rawLength: block.rawLength || block.text.length,
+    });
   }
-  for (const offset of findAllBytes(bytes, [0xff, 0xd8, 0xff])) {
-    objects.push({ type: "jpeg", offset });
+  for (const offset of jpegOffsets) {
+    const segLen = offset + 2 < bytes.length ? Math.min(bytes.length - offset, 512 * 1024) : 0;
+    objects.push({
+      type: "image",
+      subType: "jpeg",
+      offset,
+      sizeEstimate: segLen,
+      hasExif: offset + 4 < bytes.length && bytes[offset + 3] === 0xe1,
+    });
   }
-  for (const offset of findAllBytes(bytes, [0xd7, 0xcd, 0xc6, 0x9a])) {
-    objects.push({ type: "wmf", offset });
+  for (const offset of wmfOffsets) {
+    objects.push({
+      type: "image",
+      subType: "wmf",
+      offset,
+    });
   }
+  for (let i = 4; i < bytes.length - 16; i += 1) {
+    if (bytes[i] === 0x45 && bytes[i + 1] === 0x41 && bytes[i + 2] === 0x4e) {
+      const run = [];
+      let j = i;
+      while (j < bytes.length && bytes[j] >= 0x20 && bytes[j] <= 0x7e && run.length < 20) {
+        run.push(bytes[j]);
+        j += 1;
+      }
+      const code = decodeBytes(new Uint8Array(run));
+      if (/^(EAN|ean)/.test(code) || /^\d{8,14}$/.test(code)) {
+        const already = objects.find((o) => o.type === "barcode" && o.code === code);
+        if (!already) {
+          objects.push({ type: "barcode", subType: "ean", offset: i, code });
+        }
+      }
+    }
+  }
+  return objects.sort((a, b) => a.offset - b.offset);
+}
+
+function parseWddesignObjects(bytes, headerEndOffset) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const objects = [];
+  const rtfBlocks = extractRtfBlocks(bytes);
+  const jpegOffsets = findAllBytes(bytes, [0xff, 0xd8, 0xff]);
+  const wmfOffsets = findAllBytes(bytes, [0xd7, 0xcd, 0xc6, 0x9a]);
+  const COORD_MIN = -5;
+  const COORD_MAX = 350;
+  const MAX_OBJECTS = 128;
+  let pos = headerEndOffset;
+  let consecutiveMisses = 0;
+
+  while (pos + 40 < bytes.length && objects.length < MAX_OBJECTS && consecutiveMisses < 200) {
+    const typeId = readUint32(view, pos);
+    if (typeId === 0 || typeId > 50) {
+      pos += 1;
+      consecutiveMisses += 1;
+      continue;
+    }
+    const xVal = readFloat64(view, pos + 4);
+    const yVal = readFloat64(view, pos + 12);
+    if (!Number.isFinite(xVal) || !Number.isFinite(yVal)) {
+      pos += 1;
+      consecutiveMisses += 1;
+      continue;
+    }
+    if (xVal < COORD_MIN || xVal > COORD_MAX || yVal < COORD_MIN || yVal > COORD_MAX) {
+      pos += 1;
+      consecutiveMisses += 1;
+      continue;
+    }
+    const wVal = readFloat64(view, pos + 20);
+    const hVal = readFloat64(view, pos + 28);
+    if (!Number.isFinite(wVal) || !Number.isFinite(hVal)) {
+      pos += 1;
+      consecutiveMisses += 1;
+      continue;
+    }
+    if (wVal < 0 || wVal > COORD_MAX || hVal < 0 || hVal > COORD_MAX) {
+      pos += 1;
+      consecutiveMisses += 1;
+      continue;
+    }
+    if (wVal === 0 && hVal === 0) {
+      pos += 1;
+      consecutiveMisses += 1;
+      continue;
+    }
+    consecutiveMisses = 0;
+
+    let typeLabel = "unknown";
+    let subType = "";
+    let textContent = "";
+    let imageData = null;
+    let barcodeCode = "";
+
+    if (typeId >= 1 && typeId <= 5) {
+      typeLabel = "text";
+      subType = typeId <= 3 ? "rtf" : "plain";
+      const nearbyRtf = rtfBlocks.find(
+        (b) => b.offset >= pos - 64 && b.offset <= pos + 512
+      );
+      if (nearbyRtf) {
+        textContent = nearbyRtf.text.slice(0, 500);
+      } else {
+        const scanStart = pos + 36;
+        const scanEnd = Math.min(bytes.length, pos + 1024);
+        const pascal = readPascalString(bytes, scanStart);
+        if (pascal.ok && pascal.text.length >= 2) {
+          textContent = pascal.text.slice(0, 500);
+        } else {
+          let textRun = [];
+          for (let ti = scanStart; ti < scanEnd && textRun.length < 200; ti += 1) {
+            const b = bytes[ti];
+            if (b >= 32 && b < 127) textRun.push(b);
+            else if (textRun.length > 2) break;
+            else textRun = [];
+          }
+          if (textRun.length >= 3) {
+            textContent = decodeBytes(new Uint8Array(textRun)).slice(0, 500);
+          }
+        }
+      }
+    } else if (typeId >= 6 && typeId <= 10) {
+      typeLabel = "image";
+      const nearbyJpeg = jpegOffsets.find(
+        (jo) => jo >= pos && jo <= pos + 1024
+      );
+      const nearbyWmf = wmfOffsets.find(
+        (wo) => wo >= pos && wo <= pos + 1024
+      );
+      if (nearbyJpeg !== undefined) {
+        subType = "jpeg";
+        imageData = { offset: nearbyJpeg };
+      } else if (nearbyWmf !== undefined) {
+        subType = "wmf";
+        imageData = { offset: nearbyWmf };
+      }
+    } else if (typeId >= 11 && typeId <= 15) {
+      typeLabel = "barcode";
+      subType = "ean";
+      const scanStart = pos + 36;
+      const scanEnd = Math.min(bytes.length, pos + 512);
+      const pascal = readPascalString(bytes, scanStart);
+      if (pascal.ok) {
+        barcodeCode = pascal.text.slice(0, 40);
+      } else {
+        let digits = [];
+        for (let bi = scanStart; bi < scanEnd && digits.length < 18; bi += 1) {
+          const b = bytes[bi];
+          if (b >= 0x30 && b <= 0x39) digits.push(b);
+          else if (digits.length >= 7) break;
+          else digits = [];
+        }
+        if (digits.length >= 7) {
+          barcodeCode = String.fromCharCode(...digits);
+        }
+      }
+    } else if (typeId >= 16 && typeId <= 20) {
+      typeLabel = "line";
+    } else if (typeId >= 21 && typeId <= 25) {
+      typeLabel = "table";
+    } else if (typeId >= 26 && typeId <= 30) {
+      typeLabel = "ole";
+    }
+
+    const obj = {
+      typeId,
+      type: typeLabel,
+      subType,
+      x: Math.round(xVal * 100) / 100,
+      y: Math.round(yVal * 100) / 100,
+      width: Math.round(wVal * 100) / 100,
+      height: Math.round(hVal * 100) / 100,
+      offset: pos,
+    };
+    if (textContent) obj.text = textContent;
+    if (imageData) obj.image = imageData;
+    if (barcodeCode) obj.code = barcodeCode;
+
+    objects.push(obj);
+    pos += 40;
+  }
+
+  for (const rtf of rtfBlocks) {
+    const matched = objects.find(
+      (o) => o.type === "text" && Math.abs(o.offset - rtf.offset) < 1024
+    );
+    if (!matched) {
+      objects.push({
+        typeId: 0,
+        type: "text",
+        subType: "rtf",
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        offset: rtf.offset,
+        text: rtf.text.slice(0, 500),
+        orphan: true,
+      });
+    }
+  }
+  for (const jo of jpegOffsets) {
+    const matched = objects.find(
+      (o) => o.type === "image" && o.image && o.image.offset === jo
+    );
+    if (!matched) {
+      objects.push({
+        typeId: 0,
+        type: "image",
+        subType: "jpeg",
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        offset: jo,
+        image: { offset: jo },
+        orphan: true,
+      });
+    }
+  }
+  for (const wo of wmfOffsets) {
+    const matched = objects.find(
+      (o) => o.type === "image" && o.image && o.image.offset === wo
+    );
+    if (!matched) {
+      objects.push({
+        typeId: 0,
+        type: "image",
+        subType: "wmf",
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        offset: wo,
+        image: { offset: wo },
+        orphan: true,
+      });
+    }
+  }
+
   return objects.sort((a, b) => a.offset - b.offset);
 }
 
@@ -499,9 +751,21 @@ function renderMeta(record) {
   els.textHits.innerHTML = textItems.length
     ? textItems.map((text) => `<div class="text-pill">${escapeHtml(text)}</div>`).join("")
     : `<div class="library-empty">Nenhum texto extraído ainda.</div>`;
-  els.embeddedList.innerHTML = record.objectGuess?.length
-    ? record.objectGuess
-        .map((obj) => `<div class="embedded-pill">${escapeHtml(obj.type.toUpperCase())} · offset 0x${obj.offset.toString(16).toUpperCase()}${obj.text ? `<br>${escapeHtml(obj.text)}` : ""}</div>`)
+  const objectEntries = record.objects?.length
+    ? record.objects
+    : record.objectGuess?.length ? record.objectGuess : [];
+  els.embeddedList.innerHTML = objectEntries.length
+    ? objectEntries
+        .map((obj) => {
+          const tag = escapeHtml(obj.type.toUpperCase());
+          const sub = obj.subType ? ` (${escapeHtml(obj.subType)})` : "";
+          const addr = `offset 0x${obj.offset.toString(16).toUpperCase()}`;
+          const pos = (obj.width || obj.height) ? ` · ${obj.x}×${obj.y} ${obj.width}×${obj.height}mm` : "";
+          const detail = obj.text ? `<br>${escapeHtml(obj.text.slice(0, 120))}` : "";
+          const code = obj.code ? `<br>CODE: ${escapeHtml(obj.code)}` : "";
+          const orphan = obj.orphan ? " · orphan" : "";
+          return `<div class="embedded-pill">${tag}${sub} · ${addr}${pos}${orphan}${detail}${code}</div>`;
+        })
         .join("")
     : `<div class="library-empty">Nenhum bloco embutido detectado.</div>`;
   els.legacyImage.innerHTML = record.previewImage
@@ -541,6 +805,7 @@ function loadSeedCatalog() {
     textHits: [],
     rtfBlocks: [],
     objectGuess: [],
+    objects: [],
   }));
   if (state.files.length) {
     state.selectedId = state.files[0].id;
@@ -670,6 +935,16 @@ function renderLabelSvg({ className = "label-svg", widthMmOverride = null, heigh
   const careY = layout === "tall-composition" ? Math.max(margin + 190, h - margin - careSize - 58) : Math.max(margin + 132, h - margin - careSize - 52);
   const compositionLines = composition.split(/\n+/).map((line) => line.trim()).filter(Boolean);
   const noteLines = notes.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  let barcodeBlock = "";
+  if (editor.barcodeEnabled && editor.barcodeValue) {
+    var bcW = w - margin * 2 - 8;
+    var bcH = Math.min(38, (h - margin * 2) * 0.18);
+    var barcodeInner = renderBarcodeSvg(editor.barcodeValue, editor.barcodeFormat, bcW, bcH);
+    if (barcodeInner) {
+      var bcY = careItems.length > 0 ? careY + careSize + 22 : Math.min(h - margin - bcH - 22, h * 0.72);
+      barcodeBlock = `<g transform="translate(${w / 2}, ${bcY})"><g transform="translate(${-bcW / 2}, 0)"><svg width="${bcW}" height="${bcH + 16}" viewBox="0 0 ${bcW} ${bcH + 16}" preserveAspectRatio="xMidYMid meet">${barcodeInner}</svg></g></g>`;
+    }
+  }
   return `
     <svg class="${className}" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
       <rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="4" fill="#fff" stroke="#1a1f1d" stroke-width="1"/>
@@ -701,6 +976,7 @@ function renderLabelSvg({ className = "label-svg", widthMmOverride = null, heigh
         .slice(0, 3)
         .map((line, i) => `<text x="${w / 2}" y="${h - margin - 14 + i * 12}" text-anchor="middle" font-family="Segoe UI, Arial" font-size="${fitText(line, w - margin * 2, 10, 7)}" fill="#39443f">${escapeSvg(line)}</text>`)
         .join("")}
+      ${barcodeBlock || ""}
     </svg>
   `;
 }
@@ -743,6 +1019,13 @@ function syncEditorControls() {
   document.querySelectorAll("[data-care]").forEach((input) => {
     input.checked = state.editor.care.has(input.dataset.care);
   });
+  els.barcodeValueInput.value = state.editor.barcodeValue;
+  els.barcodeFormatInput.value = state.editor.barcodeFormat;
+  els.barcodeEnabledInput.checked = state.editor.barcodeEnabled;
+  var bcFields = document.getElementById("barcodeValueField");
+  var bcFormat = document.getElementById("barcodeFormatField");
+  if (bcFields) bcFields.style.display = state.editor.barcodeEnabled ? "" : "none";
+  if (bcFormat) bcFormat.style.display = state.editor.barcodeEnabled ? "" : "none";
 }
 
 function readEditorControls() {
@@ -757,6 +1040,9 @@ function readEditorControls() {
       .filter((input) => input.checked)
       .map((input) => input.dataset.care)
   );
+  state.editor.barcodeValue = els.barcodeValueInput.value || "";
+  state.editor.barcodeFormat = els.barcodeFormatInput.value || "EAN13";
+  state.editor.barcodeEnabled = els.barcodeEnabledInput.checked;
 }
 
 function readSheetControls() {
@@ -936,6 +1222,26 @@ function escapeSvg(text) {
   return escapeHtml(text);
 }
 
+function renderBarcodeSvg(value, format, width, height) {
+  var tmp = document.createElement("div");
+  var svgEl = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  tmp.appendChild(svgEl);
+  try {
+    JsBarcode(svgEl, value, {
+      format: format,
+      width: 2,
+      height: height || 50,
+      displayValue: true,
+      fontSize: 12,
+      margin: 0,
+      background: "transparent",
+    });
+  } catch (e) {
+    return "";
+  }
+  return svgEl.innerHTML;
+}
+
 function sheetDocumentSvg() {
   const svgs = Array.from(els.sheetPreview.querySelectorAll("svg"));
   if (!svgs.length) return "";
@@ -992,7 +1298,7 @@ document.querySelectorAll(".tab").forEach((tab) => {
     renderModes();
   });
 });
-[els.widthInput, els.heightInput, els.fabricNameInput, els.compositionInput, els.notesInput].forEach((el) => {
+[els.widthInput, els.heightInput, els.fabricNameInput, els.compositionInput, els.notesInput, els.barcodeValueInput].forEach((el) => {
   el.addEventListener("input", () => {
     readEditorControls();
     renderLabel();
@@ -1002,6 +1308,14 @@ document.querySelectorAll(".tab").forEach((tab) => {
 document.querySelectorAll("[data-care]").forEach((input) => {
   input.addEventListener("change", () => {
     readEditorControls();
+    renderLabel();
+    renderSheet();
+  });
+});
+[els.barcodeEnabledInput, els.barcodeFormatInput].forEach((el) => {
+  el.addEventListener("change", () => {
+    readEditorControls();
+    syncEditorControls();
     renderLabel();
     renderSheet();
   });
@@ -1016,7 +1330,44 @@ els.presetSelect.addEventListener("change", () => {
   el.addEventListener("input", renderSheet);
   el.addEventListener("change", renderSheet);
 });
-els.printButton.addEventListener("click", () => window.print());
+function printSheet() {
+  const sheetPages = els.sheetPreview.querySelectorAll(".sheet-page");
+  if (!sheetPages.length) {
+    window.print();
+    return;
+  }
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-9999px";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "none";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><style>
+    @page { size: A4; margin: 0; }
+    @page :first { margin-top: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 210mm; height: 297mm; background: #fff; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+    .sheet-page { page-break-after: always; break-after: page; page-break-inside: avoid; break-inside: avoid; width: 210mm; height: 297mm; overflow: hidden; }
+    .sheet-page:last-child { page-break-after: auto; break-after: auto; }
+    .sheet-page svg { display: block; width: 210mm; height: 297mm; }
+  </style></head><body>`);
+  sheetPages.forEach((page) => {
+    doc.write(page.outerHTML);
+  });
+  doc.write("</body></html>");
+  doc.close();
+  iframe.contentWindow.focus();
+  iframe.contentWindow.print();
+  setTimeout(() => {
+    document.body.removeChild(iframe);
+  }, 2000);
+}
+
+els.printButton.addEventListener("click", printSheet);
 els.exportButton.addEventListener("click", exportSvg);
 
 loadSeedCatalog();

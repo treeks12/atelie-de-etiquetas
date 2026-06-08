@@ -498,6 +498,24 @@ textarea {
   overflow: hidden;
 }
 
+.barcode-section {
+  padding: 8px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.barcode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.barcode-toggle input {
+  width: auto;
+}
+
 .care-selector {
   padding: 8px 12px;
   display: grid;
@@ -664,9 +682,25 @@ textarea {
   }
 }
 
+@page {
+  size: A4;
+  margin: 0;
+}
+
+@page :first {
+  margin-top: 0;
+}
+
 @media print {
-  body {
+  html, body {
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    padding: 0;
     background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
   }
 
   .topbar,
@@ -699,6 +733,9 @@ textarea {
     max-height: none;
     filter: none;
     box-shadow: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
   }
 
   .sheet-canvas {
@@ -711,11 +748,22 @@ textarea {
   .sheet-page {
     page-break-after: always;
     break-after: page;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
   }
 
   .sheet-page:last-child {
     page-break-after: auto;
     break-after: auto;
+  }
+
+  .sheet-page svg {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
 
   .sheet-preview .panel-head {

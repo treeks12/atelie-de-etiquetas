@@ -140,6 +140,26 @@
                   Observações
                   <textarea id="notesInput" rows="3">Indústria Brasileira</textarea>
                 </label>
+                <div class="barcode-section">
+                  <label class="barcode-toggle">
+                    <input type="checkbox" id="barcodeEnabledInput" />
+                    Código de barras
+                  </label>
+                  <label class="full-field" id="barcodeValueField">
+                    Valor
+                    <input id="barcodeValueInput" type="text" value="7891234567890" />
+                  </label>
+                  <label class="full-field" id="barcodeFormatField">
+                    Formato
+                    <select id="barcodeFormatInput">
+                      <option value="EAN13">EAN-13</option>
+                      <option value="EAN8">EAN-8</option>
+                      <option value="CODE128">CODE128</option>
+                      <option value="CODE39">CODE39</option>
+                      <option value="UPC">UPC</option>
+                    </select>
+                  </label>
+                </div>
 
               </form>
             </div>
@@ -241,6 +261,7 @@
       </main>
     </div>
 
+    <script src="./vendor/jsbarcode.min.js"></script>
     <script src="./label-presets.js"></script>
     <script src="./care-symbols.js"></script>
     <script src="./catalog-seed.js"></script>
